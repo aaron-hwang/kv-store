@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define DEFAULT_HASHMAP_CAPACITY 32
+#define DEFAULT_HASHMAP_CAPACITY 33
 // We want to achieve a balance between bucket amounts and bucket depth ideally
 #define TABLE_MAX_LOAD 0.75
 
@@ -61,7 +61,21 @@ void initHashmap(Hashmap* map) {
     if (map->arr == NULL) exit(2);
 }
 
+static void freeEntries(Entry* entry) {
+    if (entry == NULL) return;
+    if (entry->next == NULL) {
+        free(entry);
+        return;
+    }
+    freeEntries(entry->next);
+    free(entry);
+}
+
+
 void deleteHashmap(Hashmap* map) {
+    for (int i = 0; i < map->capacity; i++) {
+        freeEntries(map->arr[i].next);
+    }
     free(map->arr);
 }
 
@@ -94,10 +108,11 @@ void setValue(Hashmap* map, const char* key, int value) {
     }
     // We iterated through all non null entries and did not find the key, therefore it is a completely new entry;
     if (entry->next == NULL && entry->key != NULL) {
-        Entry newEntry;
-        newEntry.key = key;
-        newEntry.value = value;
-        entry->next = &newEntry;
+        Entry* newEntry = malloc(sizeof(Entry));
+        newEntry->key = key;
+        newEntry->value = value;
+        newEntry->next = NULL;
+        entry->next = newEntry;
         map->size += 1;
         return;
     }
@@ -126,6 +141,7 @@ bool deleteKey(Hashmap* map, const char* key) {
             return true;
         }
         map->arr[index] = *bucket->next;
+        map->size -= 1;
         return true;
     }
     while (bucket->next != NULL && strcmp(bucket->next->key, key) != 0) {
@@ -133,6 +149,7 @@ bool deleteKey(Hashmap* map, const char* key) {
     }
     if (strcmp(bucket->key, key) == 0) {
         bucket->next = bucket->next->next;
+        map->size -= 1;
         return true;
     }
     return false;
